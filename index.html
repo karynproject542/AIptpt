@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RealkssAI</title>
+<style>
+/* Reset & Font */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500&family=Roboto:wght@400;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Roboto',sans-serif;background:#0a0a0a;color:#fff;overflow-x:hidden;line-height:1.4;}
+h1,h2,p{margin:0;}
+a{text-decoration:none;color:inherit;}
+
+/* Background Particle */
+canvas#bgCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;}
+
+/* Header */
+header{
+  text-align:center;
+  padding:40px 20px 20px 20px;
+  position:relative;
+  z-index:2;
+}
+header img.logo{width:80px;margin-bottom:15px;}
+header h1{font-family:'Orbitron',sans-serif;font-size:2.5rem;letter-spacing:2px;margin-bottom:5px;}
+header p{color:rgba(255,255,255,0.7);font-size:1rem;}
+
+/* Main Container */
+main.container{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:30px;
+  padding:20px;
+  position:relative;
+  z-index:2;
+}
+
+/* Panels Row */
+.panels{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:20px;
+  width:100%;
+  max-width:1000px;
+}
+
+/* Panel Style */
+.panel{
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(20px);
+  border-radius:25px;
+  padding:25px;
+  flex:1 1 300px;
+  max-width:450px;
+  box-shadow:0 10px 40px rgba(0,0,0,0.3);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.panel:hover{transform:translateY(-5px);box-shadow:0 15px 60px rgba(255,65,108,0.5);}
+
+/* Inputs & Buttons */
+textarea,input[type=file]{width:100%;padding:12px;margin:10px 0;border-radius:12px;border:none;background:rgba(255,255,255,0.1);color:#fff;font-size:14px;}
+textarea::placeholder{color:rgba(255,255,255,0.7);}
+button{padding:12px 20px;border:none;border-radius:12px;background:linear-gradient(90deg,#ff416c,#ff4b2b);cursor:pointer;font-weight:700;font-family:'Orbitron',sans-serif;transition:0.3s;}
+button:hover{transform:scale(1.05);box-shadow:0 0 15px #ff416c;}
+
+/* Drop Area */
+.drop-area{
+  border:2px dashed rgba(255,255,255,0.3);
+  border-radius:20px;
+  padding:20px;
+  cursor:pointer;
+  text-align:center;
+  transition:border-color 0.3s ease;
+}
+.drop-area p{font-size:14px;color:rgba(255,255,255,0.7);}
+.drop-area.dragover{border-color:#ff416c;}
+
+/* Loader */
+.loader{
+  border:4px solid rgba(255,255,255,0.2);
+  border-top:4px solid #ff4b2b;
+  border-radius:50%;
+  width:30px;height:30px;
+  margin:10px auto;
+  animation:spin 1s linear infinite;
+}
+.loader.hidden{display:none;}
+@keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
+
+/* Gallery */
+.gallery{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:15px;
+  width:100%;
+  max-width:1000px;
+}
+.gallery-item{
+  position:relative;
+  border-radius:20px;
+  overflow:hidden;
+  transition: transform 0.3s ease;
+}
+.gallery-item:hover{transform:scale(1.05);}
+.gallery-item img,.gallery-item video{width:100%;height:200px;object-fit:cover;border-radius:20px;}
+.actions{
+  position:absolute;bottom:5px;left:50%;transform:translateX(-50%);
+  display:flex;gap:5px;
+}
+.actions button{padding:5px 10px;background:#ff416c;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Orbitron',sans-serif;}
+.actions button:hover{opacity:0.9;}
+
+/* Responsive */
+@media(max-width:650px){.panels{flex-direction:column;align-items:center;}.gallery-item img,.gallery-item video{height:180px;}}
+</style>
+</head>
+<body>
+<canvas id="bgCanvas"></canvas>
+
+<header>
+  <img src="https://raw.githubusercontent.com/karynproject542/Ai/main/709e7d07feeccef42ed169879f6306e9.jpg" class="logo" alt="RealkssAI">
+  <h1>RealkssAI</h1>
+  <p>Generate gambar AI & upload file/foto/video dengan tampilan futuristik</p>
+</header>
+
+<main class="container">
+  <div class="panels">
+    <div class="panel" id="generatePanel">
+      <h2>🎨 Generate Gambar AI</h2>
+      <textarea id="prompt" placeholder="Tulis ide gambar..."></textarea>
+      <button id="genBtn">Generate</button>
+      <div id="genLoader" class="loader hidden"></div>
+    </div>
+
+    <div class="panel" id="uploadPanel">
+      <h2>📁 Upload File / Foto / Video</h2>
+      <div class="drop-area" id="dropArea">
+        <p>Drag & Drop file di sini atau klik untuk memilih</p>
+        <input type="file" id="fileInput">
+      </div>
+      <button id="upBtn">Upload</button>
+      <div id="upLoader" class="loader hidden"></div>
+    </div>
+  </div>
+
+  <h2 style="text-align:center;margin-top:40px;">🖼 Gallery</h2>
+  <div id="gallery" class="gallery"></div>
+</main>
+
+<script>
+// ===== Particle Background =====
+const canvas=document.getElementById("bgCanvas");
+const ctx=canvas.getContext("2d");
+canvas.width=window.innerWidth;canvas.height=window.innerHeight;
+let particles=[];
+for(let i=0;i<120;i++){particles.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,r:Math.random()*2+1,dx:(Math.random()-0.5)*0.7,dy:(Math.random()-0.5)*0.7});}
+function animateBg(){ctx.clearRect(0,0,canvas.width,canvas.height);for(let p of particles){ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba(255,65,108,0.5)';ctx.fill();p.x+=p.dx;p.y+=p.dy;if(p.x<0||p.x>canvas.width)p.dx*=-1;if(p.y<0||p.y>canvas.height)p.dy*=-1;}requestAnimationFrame(animateBg);}
+animateBg();
+window.onresize=()=>{canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
+
+// ===== Elements =====
+const genBtn=document.getElementById("genBtn");
+const upBtn=document.getElementById("upBtn");
+const promptInput=document.getElementById("prompt");
+const fileInput=document.getElementById("fileInput");
+const dropArea=document.getElementById("dropArea");
+const gallery=document.getElementById("gallery");
+const genLoader=document.getElementById("genLoader");
+const upLoader=document.getElementById("upLoader");
+
+// ===== Drag & Drop =====
+dropArea.addEventListener("dragover", e=>{e.preventDefault(); dropArea.classList.add("dragover");});
+dropArea.addEventListener("dragleave", e=>{dropArea.classList.remove("dragover");});
+dropArea.addEventListener("drop", e=>{e.preventDefault(); dropArea.classList.remove("dragover"); fileInput.files=e.dataTransfer.files;});
+
+// ===== Functions =====
+async function generateImage(){
+  if(!promptInput.value) return alert("Tulis prompt dulu!");
+  genLoader.classList.remove("hidden");
+  try{
+    const res=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:promptInput.value})});
+    const data=await res.json();
+    genLoader.classList.add("hidden");
+    if(data.url) addGalleryItem(data.url,"image");
+    else alert(data.error);
+  }catch(e){genLoader.classList.add("hidden"); alert("Error generate image");}
+}
+
+async function uploadFile(){
+  if(!fileInput.files[0]) return alert("Pilih file dulu!");
+  upLoader.classList.remove("hidden");
+  const formData=new FormData(); formData.append("file",fileInput.files[0]);
+  try{
+    const res=await fetch("/api/upload",{method:"POST",body:formData});
+    const data=await res.json();
+    upLoader.classList.add("hidden");
+    if(data.url){const ext=data.url.split(".").pop();addGalleryItem(data.url,/(mp4|webm|mov)/i.test(ext)?"video":"image");}else alert(data.error);
+  }catch(e){upLoader.classList.add("hidden");alert("Error upload file");}
+}
+
+function addGalleryItem(url,type){
+  const container=document.createElement("div"); container.className="gallery-item";
+  const el=type==="image"?document.createElement("img"):document.createElement("video");
+  el.src=url;if(type==="video") el.controls=true; container.appendChild(el);
+  const actions=document.createElement("div"); actions.className="actions";
+  const dl=document.createElement("button"); dl.textContent="Download"; dl.onclick=()=>{window.open(url,"_blank");};
+  const cp=document.createElement("button"); cp.textContent="Copy URL"; cp.onclick=()=>{navigator.clipboard.writeText(url); alert("URL copied!");};
+  actions.append(dl,cp); container.appendChild(actions);
+  gallery.prepend(container);
+}
+
+// ===== Event Listeners =====
+genBtn.onclick=generateImage;
+upBtn.onclick=uploadFile;
+</script>
+</body>
+</html>
